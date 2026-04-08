@@ -6,7 +6,10 @@
   "permissions": ["downloads", "scripting"],
   "host_permissions": [
     "https://www.facebook.com/*",
-    "https://www.messenger.com/*"
+    "https://www.messenger.com/*",
+    "*://*.fbsbx.com/*",
+    "*://*.fbcdn.net/*",
+    "*://*.cdninstagram.com/*"
   ],
   "content_scripts": [
     {
