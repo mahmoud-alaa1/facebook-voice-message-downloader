@@ -13,7 +13,7 @@ export class PlayerInjector {
     const button = this.injectButton();
     button.addEventListener("click", () => this.handleClick());
   }
-
+ 
   private injectButton(): HTMLButtonElement {
     const button = document.createElement("button");
     button.className = "fbvd-btn fbvd-btn--primary";
@@ -27,7 +27,7 @@ export class PlayerInjector {
     container.setAttribute("data-fbvd-container", "1");
     container.appendChild(button);
 
-    const anchor = PlayerDOM.findInjectionAnchor(this.root);
+    const anchor = this.root.parentElement ?? this.root;
     anchor.parentElement?.insertBefore(container, anchor.nextSibling);
 
     return button;

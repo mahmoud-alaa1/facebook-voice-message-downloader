@@ -1,68 +1,58 @@
-export const SCRUBBER_SELECTOR =
-  '[role="slider"][aria-label="Audio scrubber"], ' +
-  '[role="slider"][aria-valuemax][aria-valuemin]';
+export const SCRUBBER_SELECTOR = '[role="slider"][aria-label="Audio scrubber"]';
 
 /**
- * Pure DOM-query helpers scoped to the Facebook voice-message player shape.
- * No state, no side-effects — easy to update when FB ships new markup.
+ * From the DOM snapshot, the scrubber is always exactly 2 levels deep
+ * inside the player flex row:
+ *
+ *   flexRow
+ *     div  (scrubber cell)
+ *       div[role="slider"][aria-label="Audio scrubber"]  ← scrubber
+ *
+ * So: scrubber.parentElement.parentElement === flexRow
+ *
+ * We verify the flexRow by confirming it ALSO contains
+ * [aria-label="Play"] and [role="timer"] as descendants,
+ * and that it is NOT inside the composer ([role="group"]).
  */
+
 export const PlayerDOM = {
   /**
-   * Walk up from any element inside a voice bubble to the outermost container
-   * that owns both a play button and a scrubber.
-   *
-   * From the DOM snapshot:
-   *   outer div[style="height:70px;width:218px"]   ← player root  (we want this)
-   *     inner div[data-fbvd-injected]               ← flex wrapper
-   *       div > button[role=button] svg             ← play button
-   *       div > div[role=slider]                    ← scrubber
-   *       div > div[role=timer]                     ← timer
+   * Returns the player flex row — the direct parent of the three cells
+   * (play, scrubber, timer). Our container is injected as its next sibling.
    */
-  findRoot(el: Element): HTMLElement | null {
-    let node: Element | null = el;
-    while (node && node !== document.body) {
-      const hasPlay = node.querySelector('[role="button"] svg') !== null;
-      const hasScrubber = node.querySelector(SCRUBBER_SELECTOR) !== null;
-      if (hasPlay && hasScrubber) return node as HTMLElement;
-      node = node.parentElement;
-    }
-    return null;
+  findRoot(scrubber: Element): HTMLElement | null {
+    const flexRow = scrubber.parentElement?.parentElement;
+    if (!flexRow) return null;
+
+    // Structural check: must contain Play button and timer
+    const hasPlay = !!flexRow.querySelector(
+      '[aria-label="Play"][role="button"]',
+    );
+    const hasTimer = !!flexRow.querySelector('[role="timer"]');
+    if (!hasPlay || !hasTimer) return null;
+
+    // Composer guard: must not be inside the thread composer
+    if (flexRow.closest('[aria-label="Thread composer"]')) return null;
+
+    // Recording guard: must not be inside a recording UI
+    if (flexRow.closest('[aria-label="Stop recording"]')) return null;
+
+    return flexRow as HTMLElement;
   },
 
-  /**
-   * Read duration in milliseconds from the scrubber's aria-valuemax (seconds),
-   * falling back to the mm:ss timer text. Returns 0 if unreadable.
-   */
   readDurationMs(root: HTMLElement): number {
-    const scrubber = root.querySelector(SCRUBBER_SELECTOR);
+    const scrubber = root.querySelector<Element>(SCRUBBER_SELECTOR);
     if (scrubber) {
-      const seconds = parseFloat(scrubber.getAttribute("aria-valuemax") ?? "");
-      if (Number.isFinite(seconds) && seconds > 0) {
-        return Math.round(seconds * 1000);
-      }
+      const max = parseFloat(scrubber.getAttribute("aria-valuemax") ?? "");
+      if (Number.isFinite(max) && max > 0) return Math.round(max * 1000);
     }
-
     const timerText = root.querySelector('[role="timer"]')?.textContent?.trim();
-
     if (timerText) {
       const parts = timerText.split(":").map(Number);
-      // Rejects if there are non-numbers (NaN)
-      if (parts.some((n) => !Number.isFinite(n))) return 0;
-
-      // Converts [hours, minutes, seconds] or [minutes, seconds] safely into total seconds
-      const totalSeconds = parts.reduce((acc, time) => 60 * acc + time, 0);
-      return totalSeconds * 1000;
+      if (parts.length >= 2 && parts.every(Number.isFinite)) {
+        return parts.reduce((acc, n) => acc * 60 + n, 0) * 1000;
+      }
     }
-
     return 0;
-  },
-
-  /**
-   * The node after which the button row is inserted.
-   * Targets the nearest role="presentation" ancestor so the button appears
-   * outside the message bubble, not inside it.
-   */
-  findInjectionAnchor(root: HTMLElement): HTMLElement {
-    return root.closest<HTMLElement>('[role="presentation"]') ?? root;
   },
 } as const;
