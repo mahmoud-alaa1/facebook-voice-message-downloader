@@ -3,7 +3,7 @@
   "name": "FB Voice Downloader",
   "version": "1.0.0",
   "description": "Download voice messages from Facebook and Messenger",
-  "permissions": ["downloads", "scripting"],
+  "permissions": ["downloads", "scripting", "webRequest"],
   "host_permissions": [
     "https://www.facebook.com/*",
     "https://www.messenger.com/*",

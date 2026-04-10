@@ -19,7 +19,9 @@
       "@content/*": ["./src/content/*"],
       "@background/*": ["./src/background/*"],
       "@utils/*": ["./src/utils/*"],
-      "@types-local/*": ["./src/types/*"]
+      "@protocol/*": ["./src/protocol/*"],
+      "@types-local/*": ["./src/types/*"],
+      "@messaging/*": ["./src/messaging/*"]
     }
   },
   "include": ["src", "vite.config.ts"],

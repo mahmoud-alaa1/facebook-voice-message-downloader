@@ -7,8 +7,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@content": "/src/content",
+      "@background": "/src/background",
       "@utils": "/src/utils",
-      "@types": "/src/types",
+      "@types-local": "/src/types",
+      "@messaging": "/src/messaging",
+      "@protocol": "/src/protocol",
     },
   },
 });
