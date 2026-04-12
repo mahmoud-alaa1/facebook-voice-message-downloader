@@ -9,11 +9,20 @@ function onBlobUrlDetected(event: MessageEvent): void {
   }
 
   if (event.data.action === "blobUrlDetected") {
+    const { blobUrl, blobType, durationMs, blobIndex, blobData } = event.data;
+
+    // Recreate blob from raw bytes — this URL belongs to us, not Facebook
+    let safeUrl = blobUrl;
+    if (blobData instanceof ArrayBuffer) {
+      const blob = new Blob([blobData], { type: blobType });
+      safeUrl = URL.createObjectURL(blob);
+    }
+
     chrome.runtime.sendMessage({
       action: "registerAudioUrl",
-      url: event.data.blobUrl,
-      durationMs: event.data.durationMs,
-      blobIndex: event.data.blobIndex,
+      url: safeUrl,
+      durationMs,
+      blobIndex,
       lastModified: null,
     });
   }

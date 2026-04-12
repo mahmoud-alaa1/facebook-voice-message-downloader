@@ -11,7 +11,6 @@ import {
 import {
   AUDIO_FILE_MIN_SIZE_BYTES,
   AUDIO_FILE_MAX_SIZE_BYTES,
-  NETWORK_CACHE_CLEANUP_INTERVAL_MS,
 } from "@utils/constants";
 import { Messages } from "@messaging/contract";
 import { loggers } from "@utils/logger";
@@ -25,8 +24,6 @@ function isAudioContentType(value: string): value is AudioContentType {
 }
 
 export function initializeNetworkSniffer(): void {
-  setInterval(() => processedUrls.clear(), NETWORK_CACHE_CLEANUP_INTERVAL_MS);
-
   // onHeadersReceived is sufficient — we only need response headers
   chrome.webRequest.onHeadersReceived.addListener(
     handleNetworkRequest,
