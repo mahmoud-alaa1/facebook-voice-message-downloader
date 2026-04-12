@@ -6,6 +6,7 @@
 import { DOM_SELECTORS } from "@types-local/ui";
 import { PlayerInjector } from "./player-injector";
 import { DomHelpers } from "@utils/dom-helpers";
+import { DOM_ATTRIBUTES, CSS_CLASSES } from "@types-local/ui";
 import { loggers } from "@utils/logger";
 
 const logger = loggers.scanner;
@@ -21,18 +22,50 @@ const logger = loggers.scanner;
  */
 export class PlayerScanner {
   private pending = false;
+  private enabled = false;
+  private observer: MutationObserver | null = null;
 
-  constructor() {
+  public start(): void {
+    if (this.enabled) {
+      return;
+    }
+
+    this.enabled = true;
     logger.info("Player scanner initializing...");
+    PlayerInjector.resetOrder();
     this.scan(document.body);
     this.observeDOM();
     logger.info("Player scanner ready");
   }
 
-  /**
-   * Scan for scrubber elements and inject into unprocessed players
-   */
+  public stop(): void {
+    if (!this.enabled) {
+      return;
+    }
+
+    this.enabled = false;
+    this.pending = false;
+    this.observer?.disconnect();
+    this.observer = null;
+    this.clearInjectedUI();
+    PlayerInjector.resetOrder();
+    logger.info("Player scanner stopped");
+  }
+
+  public setEnabled(enabled: boolean): void {
+    if (enabled) {
+      this.start();
+      return;
+    }
+
+    this.stop();
+  }
+
   private scan(root: Element): void {
+    if (!this.enabled) {
+      return;
+    }
+
     // Edge case: root element itself is a scrubber
     if (root.matches(DOM_SELECTORS.SCRUBBER)) {
       this.tryInject(root);
@@ -50,6 +83,10 @@ export class PlayerScanner {
    * Skips if already injected
    */
   private tryInject(scrubber: Element): void {
+    if (!this.enabled) {
+      return;
+    }
+
     // Already injected - skip
     if (DomHelpers.isAlreadyInjected(scrubber)) {
       return;
@@ -72,7 +109,12 @@ export class PlayerScanner {
    * Watch for dynamically added DOM nodes
    */
   private observeDOM(): void {
-    const observer = new MutationObserver((mutations) => {
+    this.observer?.disconnect();
+    this.observer = new MutationObserver((mutations) => {
+      if (!this.enabled) {
+        return;
+      }
+
       // Extract only added Element nodes (skip text/comment)
       const addedElements = mutations.flatMap((m) =>
         DomHelpers.filterElementNodes(m.addedNodes),
@@ -88,15 +130,38 @@ export class PlayerScanner {
       // Debounce scanning into next animation frame
       this.pending = true;
       requestAnimationFrame(() => {
+        if (!this.enabled) {
+          return;
+        }
+
         this.pending = false;
         roots.forEach((root) => this.scan(root));
       });
     });
 
     // Watch body for child additions
-    observer.observe(document.body, {
+    this.observer.observe(document.body, {
       childList: true,
       subtree: true,
+    });
+  }
+
+  private clearInjectedUI(): void {
+    document
+      .querySelectorAll(`[${DOM_ATTRIBUTES.CONTAINER}]`)
+      .forEach((node) => {
+        node.remove();
+      });
+
+    document
+      .querySelectorAll(`[${DOM_ATTRIBUTES.INJECTED}]`)
+      .forEach((node) => {
+        node.removeAttribute(DOM_ATTRIBUTES.INJECTED);
+        node.removeAttribute(DOM_ATTRIBUTES.ELEMENT_ID);
+      });
+
+    document.querySelectorAll(`.${CSS_CLASSES.CONTAINER}`).forEach((node) => {
+      node.remove();
     });
   }
 }

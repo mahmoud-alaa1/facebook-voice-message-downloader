@@ -31,9 +31,11 @@ export const STORE_ITEM_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 /** Cache cleanup interval for network URL tracking (milliseconds) */
 export const NETWORK_CACHE_CLEANUP_INTERVAL_MS = 5000; // 5000 ms = 5 seconds
 
-// ============================================================================
-// NETWORK FILTERING
-// ============================================================================
+/** Storage key for the popup enable/disable toggle */
+export const EXTENSION_ENABLED_STORAGE_KEY = "fbvd-enabled";
+
+/** Default state when the toggle has not been stored yet */
+export const DEFAULT_EXTENSION_ENABLED = true;
 
 /** Minimum audio file size (bytes) */
 export const AUDIO_FILE_MIN_SIZE_BYTES = 1000;

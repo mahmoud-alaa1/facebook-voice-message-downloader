@@ -19,6 +19,10 @@ const logger = loggers.injector;
 export class PlayerInjector {
   private static nextOrder = 0;
 
+  public static resetOrder(): void {
+    PlayerInjector.nextOrder = 0;
+  }
+
   private readonly elementId: string;
   private readonly durationMs: number;
   private readonly order: number;

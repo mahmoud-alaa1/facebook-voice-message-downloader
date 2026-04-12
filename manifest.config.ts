@@ -2,11 +2,11 @@ import { defineManifest } from "@crxjs/vite-plugin";
 import pkg from "./package.json";
 export default defineManifest({
   manifest_version: 3,
-  name: "FB Voice Downloader",
+  name: "Voice Message Downloader for Facebook",
   version: pkg.version,
   description: "Download voice messages from Facebook and Messenger",
 
-  permissions: ["downloads", "scripting", "webRequest"],
+  permissions: ["downloads", "scripting", "storage", "webRequest"],
 
   host_permissions: [
     "https://www.facebook.com/*",
@@ -36,6 +36,7 @@ export default defineManifest({
   },
 
   action: {
+    default_popup: "src/popup/index.html",
     default_icon: {
       "16": "src/assets/icon-16.png",
       "48": "src/assets/icon-48.png",
