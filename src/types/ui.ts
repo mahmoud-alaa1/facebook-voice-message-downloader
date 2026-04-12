@@ -1,22 +1,25 @@
 /**
- * UI-related types and selectors
+ * Stable DOM selectors for Facebook/Messenger audio UI.
+ *
+ * Strategy:
+ * - Prefer ARIA roles and attributes (language-agnostic).
+ * - Avoid class names and IDs (frequently obfuscated/unstable).
  */
-
 export const DOM_SELECTORS = {
-  /** Audio scrubber element in voice message player */
-  SCRUBBER: '[role="slider"][aria-label="Audio scrubber"]',
+  /** Audio scrubber (progress bar) */
+  SCRUBBER: '[role="slider"][aria-valuemin="0"][aria-valuemax]',
 
-  /** Play button in player */
-  PLAY_BUTTON: '[aria-label="Play"][role="button"]',
+  /** Play button inside audio player */
+  PLAY_BUTTON: '[role="button"][style*="background-color: transparent"]',
 
-  /** Timer display in player */
+  /** Audio timer display */
   TIMER: '[role="timer"]',
 
-  /** Thread composer guard */
-  THREAD_COMPOSER: '[aria-label="Thread composer"]',
+  /** Message composer container (used as guard) */
+  THREAD_COMPOSER: '[role="complementary"]',
 
-  /** Recording UI guard */
-  RECORDING_UI: '[aria-label="Stop recording"]',
+  /** Recording UI (shares structure with play button) */
+  RECORDING_UI: '[role="button"][style*="background-color: transparent"]',
 } as const;
 
 export const DOM_ATTRIBUTES = {
