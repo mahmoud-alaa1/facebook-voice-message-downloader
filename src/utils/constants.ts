@@ -22,14 +22,6 @@ export const SCAN_DEBOUNCE_MS = 16; // ~1 animation frame
 /** Tolerance for audio duration matching (milliseconds) */
 export const DURATION_TOLERANCE_MS = 1000;
 
-/** Memory cleanup interval (milliseconds) */
-export const STORE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-
-/** Max age for store items before cleanup (milliseconds) */
-export const STORE_ITEM_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
-
-/** Cache cleanup interval for network URL tracking (milliseconds) */
-
 /** Storage key for the popup enable/disable toggle */
 export const EXTENSION_ENABLED_STORAGE_KEY = "fbvd-enabled";
 

@@ -1,7 +1,7 @@
 {
   "name": "voice-message-downloader-for-facebook",
   "description": "Download voice messages from Facebook and Messenger as audio files with one click. Works automatically no setup required",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "keywords": [

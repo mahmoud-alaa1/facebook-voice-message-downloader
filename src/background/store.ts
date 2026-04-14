@@ -1,4 +1,4 @@
-/**
+﻿/**
  * VoiceMessageStore - Manages state matching between DOM elements and audio URLs
  *
  * This store uses fuzzy duration matching to pair:
@@ -18,7 +18,6 @@
  * - timestamp: When the item was registered (for cleanup)
  * - isPending: True if we have DOM element but no URL yet
  * - blobType: MIME type if the URL is a Blob
- * - order: Stable UI order index assigned when injector is created
  */
 export interface VoiceMessageItem {
   id: string;
@@ -28,7 +27,6 @@ export interface VoiceMessageItem {
   timestamp: number;
   isPending: boolean;
   blobType?: string;
-  order?: number;
 }
 
 export type VoiceMessageItemPartial = Partial<VoiceMessageItem>;
@@ -41,16 +39,45 @@ const logger = loggers.store;
 export class VoiceMessageStore {
   private items: Map<string, VoiceMessageItem>;
   private readonly TOLERANCE_MS = DURATION_TOLERANCE_MS;
+  private loadPromise: Promise<void>;
 
   constructor() {
     this.items = new Map();
+    this.loadPromise = this.internalLoad();
+  }
+
+  private async internalLoad(): Promise<void> {
+    try {
+      const result = await chrome.storage.session.get("VoiceMessageStore");
+      if (result.VoiceMessageStore) {
+        const parsed = JSON.parse(result.VoiceMessageStore);
+        this.items = new Map(parsed);
+        logger.info("Loaded " + this.items.size + " items from session storage");
+      }
+    } catch (e) {
+      logger.error("Failed to load store from session: " + e);
+    }
+  }
+
+  private async save(): Promise<void> {
+    try {
+      const data = JSON.stringify([...this.items.entries()]);
+      await chrome.storage.session.set({ VoiceMessageStore: data });
+    } catch (e) {
+      logger.error("Failed to save store to session: " + e);
+    }
   }
 
   /**
    * Register a DOM element representing a voice message player.
    * Checks if an orphaned URL already exists and matches it.
    */
-  public registerElement(id: string, durationMs: number, order: number): void {
+  public async registerElement(
+    id: string,
+    durationMs: number,
+  ): Promise<void> {
+    await this.loadPromise;
+
     // Try to adopt an existing orphaned URL that matches
     for (const [existingId, item] of this.items.entries()) {
       if (
@@ -66,13 +93,13 @@ export class VoiceMessageStore {
           lastModified: item.lastModified,
           timestamp: Date.now(),
           isPending: false, // Ready immediately
-          order,
         };
         if (item.blobType) adoptedItem.blobType = item.blobType;
 
         this.items.set(id, adoptedItem);
         this.items.delete(existingId);
-        logger.info(`Adopted orphaned URL for element: ${id}`);
+        await this.save();
+        logger.info("Adopted orphaned URL for element: " + id);
         return;
       }
     }
@@ -85,37 +112,52 @@ export class VoiceMessageStore {
       lastModified: null,
       timestamp: Date.now(),
       isPending: true,
-      order,
     });
-    logger.info(`Registered pending element: ${id} (${durationMs}ms)`);
+    await this.save();
+    logger.info("Registered pending element: " + id + " (" + durationMs + "ms)");
   }
 
   /**
    * Register an intercepted audio URL.
    * Uses fuzzy matching to link to a pending DOM element or creates orphan.
    */
-  public registerAudioUrl(
+  public async registerAudioUrl(
     durationMs: number,
     url: string,
     mimeType: string | null = null,
     lastModified: string | null = null,
-  ): string {
+  ): Promise<string> {
+    await this.loadPromise;
+
     // Look for matching pending element
+    let bestMatchId: string | null = null;
+    let smallestDiff = Infinity;
+
     for (const [id, item] of this.items.entries()) {
       if (item.isPending && this.isDurationMatch(item.durationMs, durationMs)) {
-        item.downloadUrl = url;
-        item.lastModified = lastModified;
-        if (mimeType) item.blobType = mimeType;
-        item.isPending = false;
-
-        logger.info(`Matched URL to element: ${id} (${durationMs}ms)`);
-        return id;
+        const diff = Math.abs(item.durationMs - durationMs);
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          bestMatchId = id;
+        }
       }
+    }
+
+    if (bestMatchId) {
+      const item = this.items.get(bestMatchId)!;
+      item.downloadUrl = url;
+      item.lastModified = lastModified;
+      if (mimeType) item.blobType = mimeType;
+      item.isPending = false;
+
+      await this.save();
+      logger.info("Matched URL to element: " + bestMatchId + " (" + durationMs + "ms)");
+      return bestMatchId;
     }
 
     // Edge case: URL arrived before DOM element
     // Create "orphaned" record to be adopted later
-    const orphanId = `orphan-${Date.now()}`;
+    const orphanId = "orphan-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
     const orphanItem: VoiceMessageItem = {
       id: orphanId,
       durationMs,
@@ -127,69 +169,25 @@ export class VoiceMessageStore {
     if (mimeType) orphanItem.blobType = mimeType;
 
     this.items.set(orphanId, orphanItem);
+    await this.save();
 
-    logger.info(`Created orphaned URL: ${orphanId} (${durationMs}ms)`);
+    logger.info("Created orphaned URL: " + orphanId + " (" + durationMs + "ms)");
     return orphanId;
   }
 
   /**
-   * Find the best ready-to-download item by duration and UI order.
-   * 1) Build candidate array by fuzzy duration match.
-   * 2) Choose the candidate with the smallest order distance.
+   * Find an item by its element ID.
    */
-  public findItemByDurationAndOrder(
-    targetDuration: number,
-    targetOrder: number,
-  ): VoiceMessageItem | null {
-    const candidates = [...this.items.values()].filter(
-      (item) =>
-        !item.isPending &&
-        !!item.downloadUrl &&
-        this.isDurationMatch(item.durationMs, targetDuration),
-    );
-
-    if (!candidates.length) return null;
-
-    // Sort by order distance — closest order wins
-    // Tiebreak by most recently registered (latest timestamp)
-    candidates.sort((a, b) => {
-      const aDist = Math.abs((a.order ?? Infinity) - targetOrder);
-      const bDist = Math.abs((b.order ?? Infinity) - targetOrder);
-      if (aDist !== bDist) return aDist - bDist;
-      return b.timestamp - a.timestamp;
-    });
-
-    const match = candidates[0];
-    logger.info(
-      `findItemByDurationAndOrder: target=(${targetDuration}ms, order=${targetOrder}) → matched id=${match?.id} order=${match?.order}`,
-    );
-
-    return match ?? null;
+  public async findByElementId(elementId: string): Promise<VoiceMessageItem | null> {
+    await this.loadPromise;
+    return this.items.get(elementId) ?? null;
   }
+
   /**
    * Check if two durations match within tolerance
    */
   private isDurationMatch(a: number, b: number): boolean {
     return Math.abs(a - b) <= this.TOLERANCE_MS;
-  }
-
-  /**
-   * Clean up old items to prevent memory leaks
-   */
-  public cleanup(maxAgeMs: number = 60 * 60 * 1000): void {
-    const now = Date.now();
-    let deletedCount = 0;
-
-    for (const [id, item] of this.items.entries()) {
-      if (now - item.timestamp > maxAgeMs) {
-        this.items.delete(id);
-        deletedCount++;
-      }
-    }
-
-    if (deletedCount > 0) {
-      logger.info(`Cleanup: removed ${deletedCount} old items`);
-    }
   }
 
   /** Get current store size for debugging */

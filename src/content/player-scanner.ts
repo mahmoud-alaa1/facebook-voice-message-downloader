@@ -32,7 +32,7 @@ export class PlayerScanner {
 
     this.enabled = true;
     logger.info("Player scanner initializing...");
-    PlayerInjector.resetOrder();
+    
     this.scan(document.body);
     this.observeDOM();
     logger.info("Player scanner ready");
@@ -48,7 +48,7 @@ export class PlayerScanner {
     this.observer?.disconnect();
     this.observer = null;
     this.clearInjectedUI();
-    PlayerInjector.resetOrder();
+    
     logger.info("Player scanner stopped");
   }
 
