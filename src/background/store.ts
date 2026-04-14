@@ -28,7 +28,6 @@ export interface VoiceMessageItem {
   timestamp: number;
   isPending: boolean;
   blobType?: string;
-  order?: number;
 }
 
 export type VoiceMessageItemPartial = Partial<VoiceMessageItem>;
@@ -50,7 +49,7 @@ export class VoiceMessageStore {
    * Register a DOM element representing a voice message player.
    * Checks if an orphaned URL already exists and matches it.
    */
-  public registerElement(id: string, durationMs: number, order: number): void {
+  public registerElement(id: string, durationMs: number): void {
     // Try to adopt an existing orphaned URL that matches
     for (const [existingId, item] of this.items.entries()) {
       if (
@@ -66,7 +65,6 @@ export class VoiceMessageStore {
           lastModified: item.lastModified,
           timestamp: Date.now(),
           isPending: false, // Ready immediately
-          order,
         };
         if (item.blobType) adoptedItem.blobType = item.blobType;
 
@@ -85,7 +83,6 @@ export class VoiceMessageStore {
       lastModified: null,
       timestamp: Date.now(),
       isPending: true,
-      order,
     });
     logger.info(`Registered pending element: ${id} (${durationMs}ms)`);
   }
@@ -101,21 +98,33 @@ export class VoiceMessageStore {
     lastModified: string | null = null,
   ): string {
     // Look for matching pending element
+    let bestMatchId: string | null = null;
+    let smallestDiff = Infinity;
+
     for (const [id, item] of this.items.entries()) {
       if (item.isPending && this.isDurationMatch(item.durationMs, durationMs)) {
-        item.downloadUrl = url;
-        item.lastModified = lastModified;
-        if (mimeType) item.blobType = mimeType;
-        item.isPending = false;
-
-        logger.info(`Matched URL to element: ${id} (${durationMs}ms)`);
-        return id;
+        const diff = Math.abs(item.durationMs - durationMs);
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          bestMatchId = id;
+        }
       }
+    }
+
+    if (bestMatchId) {
+      const item = this.items.get(bestMatchId)!;
+      item.downloadUrl = url;
+      item.lastModified = lastModified;
+      if (mimeType) item.blobType = mimeType;
+      item.isPending = false;
+
+      logger.info(`Matched URL to element: ${bestMatchId} (${durationMs}ms)`);
+      return bestMatchId;
     }
 
     // Edge case: URL arrived before DOM element
     // Create "orphaned" record to be adopted later
-    const orphanId = `orphan-${Date.now()}`;
+    const orphanId = `orphan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const orphanItem: VoiceMessageItem = {
       id: orphanId,
       durationMs,
@@ -133,38 +142,10 @@ export class VoiceMessageStore {
   }
 
   /**
-   * Find the best ready-to-download item by duration and UI order.
-   * 1) Build candidate array by fuzzy duration match.
-   * 2) Choose the candidate with the smallest order distance.
+   * Find an item by its element ID.
    */
-  public findItemByDurationAndOrder(
-    targetDuration: number,
-    targetOrder: number,
-  ): VoiceMessageItem | null {
-    const candidates = [...this.items.values()].filter(
-      (item) =>
-        !item.isPending &&
-        !!item.downloadUrl &&
-        this.isDurationMatch(item.durationMs, targetDuration),
-    );
-
-    if (!candidates.length) return null;
-
-    // Sort by order distance — closest order wins
-    // Tiebreak by most recently registered (latest timestamp)
-    candidates.sort((a, b) => {
-      const aDist = Math.abs((a.order ?? Infinity) - targetOrder);
-      const bDist = Math.abs((b.order ?? Infinity) - targetOrder);
-      if (aDist !== bDist) return aDist - bDist;
-      return b.timestamp - a.timestamp;
-    });
-
-    const match = candidates[0];
-    logger.info(
-      `findItemByDurationAndOrder: target=(${targetDuration}ms, order=${targetOrder}) → matched id=${match?.id} order=${match?.order}`,
-    );
-
-    return match ?? null;
+  public findByElementId(elementId: string): VoiceMessageItem | null {
+    return this.items.get(elementId) ?? null;
   }
   /**
    * Check if two durations match within tolerance

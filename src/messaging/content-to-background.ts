@@ -7,7 +7,6 @@ export interface RegisterElementMessage {
   action: "registerElement";
   elementId: string;
   durationMs: number;
-  order: number;
 }
 
 /** Register an audio URL intercepted from network or blob. */
@@ -21,8 +20,7 @@ export interface RegisterAudioUrlMessage {
 /** User clicked the download button. */
 export interface UiDownloadClickedMessage {
   action: "uiDownloadClicked";
-  durationMs: number;
-  order: number;
+  elementId: string;
 }
 
 export type ContentToBackgroundMessage =

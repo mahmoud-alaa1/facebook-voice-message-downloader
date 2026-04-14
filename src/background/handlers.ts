@@ -17,11 +17,7 @@ const logger = loggers.background;
 export function makeHandlers(store: VoiceMessageStore): HandlerMap {
   return {
     registerElement(message, respond) {
-      store.registerElement(
-        message.elementId,
-        message.durationMs,
-        message.order,
-      );
+      store.registerElement(message.elementId, message.durationMs);
       respond({ success: true });
     },
 
@@ -39,10 +35,7 @@ export function makeHandlers(store: VoiceMessageStore): HandlerMap {
     },
 
     uiDownloadClicked(message, respond) {
-      const item = store.findItemByDurationAndOrder(
-        message.durationMs,
-        message.order,
-      );
+      const item = store.findByElementId(message.elementId);
 
       if (!item?.downloadUrl) {
         respond({ success: false, error: "Audio URL not found yet" });

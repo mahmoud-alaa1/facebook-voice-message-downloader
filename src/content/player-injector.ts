@@ -17,26 +17,17 @@ import { DownloadResponse } from "@messaging/responses";
 const logger = loggers.injector;
 
 export class PlayerInjector {
-  private static nextOrder = 0;
-
-  public static resetOrder(): void {
-    PlayerInjector.nextOrder = 0;
-  }
-
   private readonly elementId: string;
   private readonly durationMs: number;
-  private readonly order: number;
 
   constructor(private readonly root: HTMLElement) {
     this.elementId = `vm-${Math.random().toString(36).substring(2, 11)}`;
     this.durationMs = DomHelpers.readPlayerDurationMs(root);
-    this.order = PlayerInjector.nextOrder++;
 
     DomHelpers.markAsInjected(root, this.elementId);
     Messages.registerElement({
       elementId: this.elementId,
       durationMs: this.durationMs,
-      order: this.order,
     });
     this.injectUI();
   }
@@ -53,7 +44,7 @@ export class PlayerInjector {
     button.style.opacity = "0.5";
 
     Messages.requestDownload(
-      { durationMs: this.durationMs, order: this.order },
+      { elementId: this.elementId },
       (response: DownloadResponse) => {
         button.disabled = false;
         button.style.opacity = "1";
