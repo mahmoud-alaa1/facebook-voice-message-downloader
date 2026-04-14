@@ -6,7 +6,7 @@ export default defineManifest({
   version: pkg.version,
   description: "Download voice messages from Facebook and Messenger",
 
-  permissions: ["downloads", "storage", "webRequest"],
+  permissions: ["downloads", "storage", "webRequest", "tabs"],
 
   host_permissions: [
     "https://www.facebook.com/*",

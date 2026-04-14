@@ -19,6 +19,7 @@ export const VALID_AUDIO_CONTENT_TYPES = [
   "audio/x-aac",
   "audio/flac",
   "audio/x-flac",
+  "video/mp4",
 ] as const;
 
 export type AUDIO_TYPES = (typeof VALID_AUDIO_CONTENT_TYPES)[number];

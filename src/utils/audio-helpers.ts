@@ -43,6 +43,7 @@ export function getAudioFileExtension(mimeType: string): string {
   if (mimeType.includes("flac")) return "flac";
   if (mimeType.includes("aac")) return "aac";
   if (mimeType.includes("mpeg")) return "mp3";
+  if (mimeType.includes("mp4")) return "mp4";
   return "ogg"; // default
 }
 
@@ -50,6 +51,6 @@ export function getAudioFileExtension(mimeType: string): string {
  * Validate audio MIME type
  */
 export function isValidAudioType(mimeType: string): boolean {
-  const validTypes = ["audio/"];
+  const validTypes = ["audio/", "video/mp4"];
   return validTypes.some((type) => mimeType.includes(type));
 }
